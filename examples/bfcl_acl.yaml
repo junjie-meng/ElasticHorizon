@@ -1,0 +1,77 @@
+hydra:
+  searchpath:
+    - file://external/config_fallback
+    - file://config
+
+defaults:
+  - ppo_trainer
+  - agentevolver
+  - _self_
+
+actor_rollout_ref:
+  model:
+    path: Qwen/Qwen2.5-7B-Instruct
+  rollout:
+    use_qwen3: false
+    max_model_len: 23480
+    multi_turn:
+      max_steps: 50
+    
+
+env_service:
+  env_type: "bfcl"
+  env_url: "http://127.0.0.1:8085"
+  env_feedin_preference: code # code, text, box
+
+data:
+  max_prompt_length: 6000
+  max_response_length: 17480
+
+trainer:
+  n_gpus_per_node: 4
+  nnodes: 1
+  project_name: "elastic_horizon_bfcl"
+  experiment_name: "elastic_horizon_bfcl_qwen2.5-7b"
+
+# Elastic Horizon controller (ONLY controls multi-turn max_steps)
+curriculum:
+  enable_max_steps_control: true
+  # "acl" = Elastic Horizon (ours); "scaling" / "tti" = open-loop schedule baselines
+  update_mode: "acl"
+  # bounds
+  min_max_steps: 5
+  max_max_steps: 50
+  # target = P90(success_turns) + headroom
+  headroom_steps: 10
+  # current <- EMA(current, target)
+  smoothing_alpha: 0.2
+
+  # stability knobs
+  success_sample_window: 100
+  metrics_window: 50
+  min_success_samples_for_update_turns: 10
+
+  # success threshold for outcome-based reward
+  success_outcome_threshold: 0.5
+
+# Keep other parts minimal / same as basic
+exp_manager:
+  val_rollout_mode: "woexp"
+  train_rollout_mode: "woexp"
+  rollout_ratio: 0.0
+  train_sample_mode: "alldiscard"
+  train_sample_keepratio: 1.0
+  experience_template: "\n\nSome Related Experience to help you to complete the task:<EXP>{}</EXP>\n\n"
+  init_exp_before_training: False
+  init_exp_only: False
+  summary_batch_size: 8
+  reme:
+    base_url: "http://127.0.0.1:8001"
+    workspace_id: "default"
+    enable_summarizer: False
+    enable_context_generator: False
+    retrieve_top_k: 3
+    updated_freq: 0
+
+attribution_driven_credit_assignment:
+  enable: false
